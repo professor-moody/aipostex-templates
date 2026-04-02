@@ -1,0 +1,62 @@
+id: streamlit-enum-001-health-metadata
+info:
+  name: "Streamlit - Health and Metadata Disclosure"
+  severity: medium
+  author: aipostex
+  description: |
+    Streamlit exposes metadata through its internal endpoints that can reveal
+    deployment details, component inventory, and runtime configuration. This
+    information aids reconnaissance for further exploitation of the underlying
+    ML pipeline or data sources accessed by the application.
+  reference:
+    - https://docs.streamlit.io/
+  tags: [streamlit, enumeration, metadata, disclosure]
+  classification:
+    mitre-atlas: [AML.T0049]
+
+detect:
+  - method: GET
+    path: /_stcore/health
+    matchers:
+      - type: status
+        value: "200"
+      - type: body_contains
+        value: "ok"
+
+checks:
+  - name: "Streamlit component registry"
+    method: GET
+    path: /_stcore/allowed-message-origins
+    matchers:
+      - type: status
+        value: "200"
+    severity: info
+    finding:
+      title: "Streamlit Allowed Message Origins Disclosed"
+      description: "Streamlit allowed-message-origins endpoint is accessible, revealing trusted origins for cross-frame communication."
+
+  - name: "Streamlit static asset enumeration"
+    method: GET
+    path: /static/js/main.chunk.js
+    matchers:
+      - type: status
+        value: "200"
+    severity: info
+    finding:
+      title: "Streamlit Static Assets Accessible"
+      description: "Streamlit application serves static JavaScript assets, confirming a full web application deployment."
+
+  - name: "Streamlit media endpoint"
+    method: GET
+    path: /_stcore/stream
+    matchers:
+      - type: status
+        value: "200"
+    severity: medium
+    finding:
+      title: "Streamlit WebSocket Stream Endpoint Accessible"
+      description: "Streamlit WebSocket stream endpoint is accessible, enabling real-time interaction with the application without authentication."
+      evidence: |
+        Request:  GET /_stcore/stream
+        Result:   200 OK — WebSocket upgrade available
+        Impact:   Unauthenticated real-time access to application state and data

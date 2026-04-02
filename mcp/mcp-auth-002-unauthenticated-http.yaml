@@ -1,0 +1,66 @@
+id: mcp-auth-002-unauthenticated-http
+info:
+  name: "MCP Server - Unauthenticated HTTP Message Transport"
+  severity: high
+  author: aipostex
+  description: |
+    MCP server accepts unauthenticated JSON-RPC requests over HTTP message
+    transport. An attacker can initialize the session, enumerate tools, and
+    inspect server capabilities without authenticating.
+  reference:
+    - https://modelcontextprotocol.io/
+    - https://vulnerablemcp.info/
+  tags: [mcp, auth, misconfiguration, http]
+
+detect:
+  - method: POST
+    path: /message
+    headers:
+      Content-Type: application/json
+    body: '{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{}},"id":1}'
+    matchers:
+      - type: status
+        value: "200"
+      - type: body_contains
+        value: "serverInfo"
+
+checks:
+  - name: "Server initialization disclosure"
+    method: POST
+    path: /message
+    headers:
+      Content-Type: application/json
+    body: '{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{}},"id":1}'
+    matchers:
+      - type: status
+        value: "200"
+      - type: body_contains
+        value: "serverInfo"
+    extractors:
+      - type: json
+        name: server_name
+        path: "result.serverInfo.name"
+    severity: medium
+    finding:
+      title: "MCP HTTP Transport Initialization Exposed"
+      description: "MCP server accepted unauthenticated initialize request. Server name: {{server_name}}."
+
+  - name: "Tool enumeration over HTTP"
+    method: POST
+    path: /message
+    headers:
+      Content-Type: application/json
+    body: '{"jsonrpc":"2.0","method":"tools/list","id":2}'
+    matchers:
+      - type: status
+        value: "200"
+      - type: body_contains
+        value: "tools"
+    extractors:
+      - type: json
+        name: tool_names
+        path: "result.tools.#.name"
+    severity: high
+    finding:
+      title: "MCP HTTP Transport - Tools Exposed"
+      description: "Unauthenticated HTTP message transport exposed MCP tools: {{tool_names}}."
